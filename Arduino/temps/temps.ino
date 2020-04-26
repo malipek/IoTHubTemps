@@ -3,7 +3,7 @@
 
 // Pull-up resistor connected to external source (not controlled by Arduino)
 // DQ pin connected to digital 2 input
-#define ONE_WIRE_BUS 2
+#define ONE_WIRE_BUS 11
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(ONE_WIRE_BUS);
@@ -29,7 +29,7 @@ void loop(void)
   sensors.requestTemperatures(); // Send the command to get temperatures
 
   //format JSON array
-  Serial.print(F("{temps:["));
+  Serial.print(F("{\"temps\":["));
   
   for(int i=0;i<sensors.getDeviceCount();i++) {
     // output all sensors' readings to serial
