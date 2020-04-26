@@ -1,8 +1,12 @@
+// Works on Arduino UNO, Arduino Leonard
+// Doesn't work with less then 8kB free ROM
+// Doesn't work without bidirectional UART (i.e ATTiny family)
+
 #include <OneWire.h> // https://www.pjrc.com/teensy/td_libs_OneWire.html
 #include <DallasTemperature.h> // https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 // Pull-up resistor connected to external source (not controlled by Arduino)
-// DQ pin connected to digital 2 input
+// DQ pin connected to digital 11 input
 #define ONE_WIRE_BUS 11
 
 // Setup a oneWire instance to communicate with any OneWire devices
