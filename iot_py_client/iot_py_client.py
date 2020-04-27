@@ -6,11 +6,33 @@ and sends them as a message to Azure IoT Hub
 import os
 import sys
 import json
-#import serial
+import time
+import serial
 
 # https://github.com/Azure/azure-iot-sdk-python
 # pip3 install azure-iot-device
 from azure.iot.device import IoTHubDeviceClient, Message
+
+def get_env_var(var_name):
+    """ Returns env value for var_name
+        Throws KeyException if not exists
+    """
+    try:
+        os.environ[var_name]
+    except KeyError:
+        sys.stderr.write("Environment variable \"{}\" not set\n".format(var_name))
+        sys.exit(1)
+    return os.environ.get(var_name)
+
+def get_serial_port():
+    """ Returns serial port name form env variable
+        IOT_PORT
+        On Linux it's usually /dev/ttyACM0
+        Find correct one with ls /dev/ttyACM* and expose with
+        export IOT_PORT=/dev/ttyACMX
+
+    """
+    return get_env_var("IOT_PORT")
 
 def get_iot_connection_string():
     """ Returns Azure IoT Hub connection string read from environment variable IOT_CS
@@ -23,22 +45,44 @@ def get_iot_connection_string():
         SharedAccessKey=access_key_b64
 
     """
-    try:
-        os.environ["IOT_CS"]
-    except KeyError:
-        print("Please set the environment variable IOT_CS with Azure IoT connection string")
-        sys.exit(1)
-    return os.environ.get("IOT_CS")
+    return get_env_var("IOT_CS")
 
-def get_iot_temps():
+def open_serial(port):
+    """ Tries to open given serial port
+        with 9600 baud - hardoced speed in arduino program
+        Set timeout to 5s (proccesing sensors takes some time)
+        returns pyserial instance
+    """
+    port = serial.Serial(port, 9600, timeout=5)
+    assert port, "Port doesn't exists"
+    time.sleep(2) #added due to lag when opening port
+    # add longer sleep when connection tis timeouting
+    return port
+
+def close_serial(port):
+    """ Check if port is opened anc lose it
+    """
+    if port.is_open:
+        port.close()
+
+def get_iot_temps(port):
     """ Reads JSON from connected Arduino board with temps.ino program
     https://github.com/malipek/IoTHubTemps/tree/master/Arduino/temps
 
     Returns temps list
 
     """
-    # todo - communication with arduino
-    json_obj = '{"temps":[18.63,22.56,16.56]}'
+    command = "GET TEMPS"
+    term_sign = "" # empty string for Andruino Leonardo
+    message = command+term_sign
+    port.write(message.encode())
+    message = port.readline()
+    if not message:
+        # timeouted!
+        close_serial(port)
+        sys.stderr.write("Timeout exceeded when reading data\n")
+        sys.exit(1)
+    json_obj = message.decode()
     temps_obj = json.loads(json_obj)
     temps = temps_obj.get('temps')
     return temps
@@ -79,7 +123,9 @@ def prepare_iot_message(labels, temps):
 
 if __name__ == '__main__':
     CONNECTION_STRING = get_iot_connection_string()
-    TEMPS = get_iot_temps()
+    PORT = open_serial(get_serial_port())
+    TEMPS = get_iot_temps(PORT)
+    close_serial(PORT)
     LABELS = get_labels_for_temps(TEMPS)
     CLIENT = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
     if CLIENT:
