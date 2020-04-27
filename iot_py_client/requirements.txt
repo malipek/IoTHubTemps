@@ -1,0 +1,2 @@
+pyserial ~= 3.4
+azure-iot-device ~= 2.1
